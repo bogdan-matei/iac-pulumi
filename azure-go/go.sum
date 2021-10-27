@@ -170,6 +170,8 @@ github.com/prometheus/procfs v0.0.0-20181005140218-185b4288413d/go.mod h1:c3At6R
 github.com/prometheus/procfs v0.0.0-20190507164030-5867b95ac084/go.mod h1:TjEm7ze935MbeOT/UhFTIMYKhuLP4wbCsTZCD3I8kEA=
 github.com/prometheus/tsdb v0.7.1/go.mod h1:qhTCs0VvXwvX/y3TZrWD7rabWM+ijKTux40TwIPHuXU=
 github.com/pulumi/go-yaml v1.8.10-0.20210311214047-95da20da6e94/go.mod h1:gY5v736YyqzhcB0WcDSX4ePCUM90DU88xiH4gQ/ZcXo=
+github.com/pulumi/pulumi-aws/sdk/v4 v4.25.0 h1:wIZtuNC9+S0r2KPo+2die6ajQLw/kPa8xlEiyUzN+eE=
+github.com/pulumi/pulumi-aws/sdk/v4 v4.25.0/go.mod h1:cmji+08wmrwoWheCupYXaBQSLeibCNr4zXaqS6iYAys=
 github.com/pulumi/pulumi-azure-native/sdk v1.35.0 h1:2Y5y06GkQcPkNLFUFJqcDqc3M2xR9opmu7K1yDsfUO4=
 github.com/pulumi/pulumi-azure-native/sdk v1.35.0/go.mod h1:d9melP4WWGoAbX9uVgt2iBys1f/iiRTBQITm44luo8Q=
 github.com/pulumi/pulumi-azure/sdk/v4 v4.23.0 h1:QepJlG65VnMj8UpXbQqe8PvzwDsZGrmWwzpAQaipDT4=
@@ -181,6 +183,8 @@ github.com/pulumi/pulumi/sdk/v3 v3.14.0 h1:UXLRHGQCsO1tLWdv4IO3IQOXrUoZUHhDtDXFo
 github.com/pulumi/pulumi/sdk/v3 v3.14.0/go.mod h1:aT7YmFdR6/T7tp2tMIZ68WRD1Xyv5a6Y4BhsuaCNpW0=
 github.com/pulumi/pulumi/sdk/v3 v3.14.1-0.20211007222624-789e39219452 h1:ROybvuc1v+eqYOnP+BFN6WRGWpF4WbNWV0YT1vwpVHE=
 github.com/pulumi/pulumi/sdk/v3 v3.14.1-0.20211007222624-789e39219452/go.mod h1:aT7YmFdR6/T7tp2tMIZ68WRD1Xyv5a6Y4BhsuaCNpW0=
+github.com/pulumi/pulumi/sdk/v3 v3.16.0 h1:yqGysCf1LqlkengBnYqcbl5JI6JGySPN67+g60dMieU=
+github.com/pulumi/pulumi/sdk/v3 v3.16.0/go.mod h1:252ou/zAU1g6E8iTwe2Y9ht7pb5BDl2fJlOuAgZCHiA=
 github.com/rogpeppe/fastuuid v0.0.0-20150106093220-6724a57986af/go.mod h1:XWv6SoW27p1b0cqNHllgS5HIMJraePCO15w5zCzIWYg=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/sabhiram/go-gitignore v0.0.0-20180611051255-d3107576ba94 h1:G04eS0JkAIVZfaJLjla9dNxkJCPiKIGZlw9AfOhzOD0=
@@ -195,6 +199,7 @@ github.com/soheilhy/cmux v0.1.4/go.mod h1:IM3LyeVVIOuxMH7sFAkER9+bJ4dT7Ms6E4xg4k
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/cast v1.3.0/go.mod h1:Qx5cxh0v+4UWYiBimWS+eyWzqEqokIECu5etghLkUJE=
+github.com/spf13/cast v1.3.1 h1:nFm6S0SMdyzrzcmThSipiEubIDy8WEXKNZ0UOgiRpng=
 github.com/spf13/cast v1.3.1/go.mod h1:Qx5cxh0v+4UWYiBimWS+eyWzqEqokIECu5etghLkUJE=
 github.com/spf13/cobra v1.0.0 h1:6m/oheQuQ13N9ks4hubMG6BnvwOeaJrqSPLahSnczz8=
 github.com/spf13/cobra v1.0.0/go.mod h1:/6GTrnGXV9HjY+aR4k0oJ5tcvakLuG6EuKReYlHNrgE=

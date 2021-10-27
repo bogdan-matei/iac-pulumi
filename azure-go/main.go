@@ -1,18 +1,17 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/resources"
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/storage"
 	"github.com/pulumi/pulumi-azure/sdk/v4/go/azure/compute"
 	"github.com/pulumi/pulumi-azure/sdk/v4/go/azure/network"
-	"github.com/pulumi/pulumi-random/sdk/v4/go/random"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
+	"github.com/pulumi/pulumi/sdk/v3/go/pulumi/config"
 )
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
+		cfg := config.New(ctx, "")
 
 		// Create an Azure Resource Group
 		resourceGroup, err := resources.NewResourceGroup(ctx, "resourceGroup", nil)
@@ -67,6 +66,19 @@ func main() {
 			AddressPrefixes: pulumi.StringArray{
 				pulumi.String("10.0.2.0/24"),
 			},
+			Name: pulumi.String("private-vnet-subnet"),
+		})
+
+		if err != nil {
+			return err
+		}
+
+		publicIp, err := network.NewPublicIp(ctx, "publicControlPlaneIp", &network.PublicIpArgs{
+			AllocationMethod:     pulumi.String("Static"),
+			DomainNameLabel:      pulumi.StringPtr("wooferiuskubeadmtraining"),
+			IdleTimeoutInMinutes: pulumi.IntPtr(5),
+			ResourceGroupName:    resourceGroup.Name,
+			Sku:                  pulumi.String("Standard"),
 		})
 
 		if err != nil {
@@ -78,9 +90,10 @@ func main() {
 			ResourceGroupName: resourceGroup.Name,
 			IpConfigurations: network.NetworkInterfaceIpConfigurationArray{
 				&network.NetworkInterfaceIpConfigurationArgs{
-					Name:                       pulumi.String("testconfiguration1"),
+					Name:                       pulumi.String("ipconfig1"),
 					SubnetId:                   internal.ID(),
 					PrivateIpAddressAllocation: pulumi.String("Dynamic"),
+					PublicIpAddressId:          publicIp.ID(),
 				},
 			},
 		})
@@ -89,52 +102,67 @@ func main() {
 			return err
 		}
 
-		password, err := random.NewRandomPassword(ctx, "password", &random.RandomPasswordArgs{
-			Length:          pulumi.Int(16),
-			Special:         pulumi.Bool(true),
-			OverrideSpecial: pulumi.String(fmt.Sprintf("%v%v%v", "_", "%", "@")),
+		_, err = compute.NewLinuxVirtualMachine(ctx, "clusterControlPlane", &compute.LinuxVirtualMachineArgs{
+			Location:          resourceGroup.Location,
+			ResourceGroupName: resourceGroup.Name,
+			NetworkInterfaceIds: pulumi.StringArray{
+				mainNetworkInterface.ID(),
+			},
+
+			AdminUsername: pulumi.String("wooferius"),
+			AdminSshKeys: compute.LinuxVirtualMachineAdminSshKeyArray{
+				&compute.LinuxVirtualMachineAdminSshKeyArgs{
+					Username:  pulumi.String("wooferius"),
+					PublicKey: cfg.RequireSecret("public-key"),
+				},
+			},
+			Size: pulumi.String("Standard_DS1_v2"),
+			SourceImageReference: &compute.LinuxVirtualMachineSourceImageReferenceArgs{
+				Publisher: pulumi.String("Canonical"),
+				Offer:     pulumi.String("UbuntuServer"),
+				Sku:       pulumi.String("18.04-LTS"),
+				Version:   pulumi.String("latest"),
+			},
+			OsDisk: &compute.LinuxVirtualMachineOsDiskArgs{
+				Caching:            pulumi.String("ReadWrite"),
+				StorageAccountType: pulumi.String("Standard_LRS"),
+			},
+			Tags: pulumi.StringMap{
+				"environment": pulumi.String(ctx.Stack()),
+			},
 		})
 
 		if err != nil {
 			return err
 		}
 
-		ctx.Export("adminPassword", pulumi.All().ApplyT(func(args []interface{}) pulumi.Output {
-			return password.Result
-		},
-		))
-
-		_, err = compute.NewVirtualMachine(ctx, "mainVirtualMachine", &compute.VirtualMachineArgs{
+		primaryNSG, err := network.NewNetworkSecurityGroup(ctx, "primaryNSG", &network.NetworkSecurityGroupArgs{
 			Location:          resourceGroup.Location,
 			ResourceGroupName: resourceGroup.Name,
-			NetworkInterfaceIds: pulumi.StringArray{
-				mainNetworkInterface.ID(),
-			},
-			VmSize: pulumi.String("Standard_DS1_v2"),
-			StorageImageReference: &compute.VirtualMachineStorageImageReferenceArgs{
-				Publisher: pulumi.String("Canonical"),
-				Offer:     pulumi.String("UbuntuServer"),
-				Sku:       pulumi.String("18.04-LTS"),
-				Version:   pulumi.String("latest"),
-			},
-			StorageOsDisk: &compute.VirtualMachineStorageOsDiskArgs{
-				Name:            pulumi.String("myosdisk1"),
-				Caching:         pulumi.String("ReadWrite"),
-				CreateOption:    pulumi.String("FromImage"),
-				ManagedDiskType: pulumi.String("Standard_LRS"),
-			},
-			OsProfile: &compute.VirtualMachineOsProfileArgs{
-				ComputerName:  pulumi.String("hostname"),
-				AdminUsername: pulumi.String("testadmin"),
-				AdminPassword: password.Result,
-			},
-			OsProfileLinuxConfig: &compute.VirtualMachineOsProfileLinuxConfigArgs{
-				DisablePasswordAuthentication: pulumi.Bool(false),
-			},
-			Tags: pulumi.StringMap{
-				"environment": pulumi.String(ctx.Stack()),
+			SecurityRules: network.NetworkSecurityGroupSecurityRuleArray{
+				&network.NetworkSecurityGroupSecurityRuleArgs{
+					Name:                     pulumi.String("allowRemote"),
+					Priority:                 pulumi.Int(100),
+					Direction:                pulumi.String("Inbound"),
+					Access:                   pulumi.String("Allow"),
+					Protocol:                 pulumi.String("Tcp"),
+					SourcePortRange:          pulumi.String("*"),
+					SourceAddressPrefix:      cfg.RequireSecret("sourceIp"),
+					DestinationAddressPrefix: pulumi.String("*"),
+					DestinationPortRange:     pulumi.String("22"),
+				},
 			},
 		})
+
+		if err != nil {
+			return err
+		}
+
+		_, err = network.NewSubnetNetworkSecurityGroupAssociation(ctx, "primarySubnetSGAssoc", &network.SubnetNetworkSecurityGroupAssociationArgs{
+			SubnetId:               internal.ID(),
+			NetworkSecurityGroupId: primaryNSG.ID(),
+		})
+
 		if err != nil {
 			return err
 		}
