@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/resources"
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/storage"
 	"github.com/pulumi/pulumi-azure/sdk/v4/go/azure/compute"
@@ -116,7 +118,7 @@ func main() {
 					PublicKey: cfg.RequireSecret("public-key"),
 				},
 			},
-			Size: pulumi.String("Standard_DS1_v2"),
+			Size: pulumi.String("Standard_DS2_v2"),
 			SourceImageReference: &compute.LinuxVirtualMachineSourceImageReferenceArgs{
 				Publisher: pulumi.String("Canonical"),
 				Offer:     pulumi.String("UbuntuServer"),
@@ -130,7 +132,7 @@ func main() {
 			Tags: pulumi.StringMap{
 				"environment": pulumi.String(ctx.Stack()),
 			},
-		})
+		}, pulumi.DependsOn([]pulumi.Resource{mainNetworkInterface}), pulumi.DeleteBeforeReplace(true))
 
 		if err != nil {
 			return err
@@ -141,7 +143,7 @@ func main() {
 			ResourceGroupName: resourceGroup.Name,
 			SecurityRules: network.NetworkSecurityGroupSecurityRuleArray{
 				&network.NetworkSecurityGroupSecurityRuleArgs{
-					Name:                     pulumi.String("allowRemote"),
+					Name:                     pulumi.String("allowRemoteSSH"),
 					Priority:                 pulumi.Int(100),
 					Direction:                pulumi.String("Inbound"),
 					Access:                   pulumi.String("Allow"),
@@ -150,6 +152,17 @@ func main() {
 					SourceAddressPrefix:      cfg.RequireSecret("sourceIp"),
 					DestinationAddressPrefix: pulumi.String("*"),
 					DestinationPortRange:     pulumi.String("22"),
+				},
+				&network.NetworkSecurityGroupSecurityRuleArgs{
+					Name:                     pulumi.String("externalK8sApiServer"),
+					Priority:                 pulumi.Int(110),
+					Direction:                pulumi.String("Inbound"),
+					Access:                   pulumi.String("Allow"),
+					Protocol:                 pulumi.String("Tcp"),
+					SourcePortRange:          pulumi.String("*"),
+					SourceAddressPrefix:      cfg.RequireSecret("sourceIp"),
+					DestinationAddressPrefix: pulumi.String("*"),
+					DestinationPortRange:     pulumi.String("6443"),
 				},
 			},
 		})
@@ -161,10 +174,65 @@ func main() {
 		_, err = network.NewSubnetNetworkSecurityGroupAssociation(ctx, "primarySubnetSGAssoc", &network.SubnetNetworkSecurityGroupAssociationArgs{
 			SubnetId:               internal.ID(),
 			NetworkSecurityGroupId: primaryNSG.ID(),
-		})
+		}, pulumi.DependsOn([]pulumi.Resource{primaryNSG, internal}))
 
 		if err != nil {
 			return err
+		}
+
+		// Creation of worker nodes
+
+		for i := 0; i < cfg.GetInt("countWorkerNodes"); i++ {
+
+			workerNodeInterface, err := network.NewNetworkInterface(ctx, fmt.Sprintf("workerNodeInterface-%d", i), &network.NetworkInterfaceArgs{
+				Location:          resourceGroup.Location,
+				ResourceGroupName: resourceGroup.Name,
+				IpConfigurations: network.NetworkInterfaceIpConfigurationArray{
+					&network.NetworkInterfaceIpConfigurationArgs{
+						Name:                       pulumi.String(fmt.Sprintf("workerNodeInterface-%d", i)),
+						SubnetId:                   internal.ID(),
+						PrivateIpAddressAllocation: pulumi.String("Dynamic"),
+					},
+				},
+			})
+
+			if err != nil {
+				return err
+			}
+
+			_, err = compute.NewLinuxVirtualMachine(ctx, fmt.Sprintf("workerNode-%d", i), &compute.LinuxVirtualMachineArgs{
+				Location:          resourceGroup.Location,
+				ResourceGroupName: resourceGroup.Name,
+				NetworkInterfaceIds: pulumi.StringArray{
+					workerNodeInterface.ID(),
+				},
+
+				AdminUsername: pulumi.String("wooferius"),
+				AdminSshKeys: compute.LinuxVirtualMachineAdminSshKeyArray{
+					&compute.LinuxVirtualMachineAdminSshKeyArgs{
+						Username:  pulumi.String("wooferius"),
+						PublicKey: cfg.RequireSecret("public-key"),
+					},
+				},
+				Size: pulumi.String("Standard_DS2_v2"),
+				SourceImageReference: &compute.LinuxVirtualMachineSourceImageReferenceArgs{
+					Publisher: pulumi.String("Canonical"),
+					Offer:     pulumi.String("UbuntuServer"),
+					Sku:       pulumi.String("18.04-LTS"),
+					Version:   pulumi.String("latest"),
+				},
+				OsDisk: &compute.LinuxVirtualMachineOsDiskArgs{
+					Caching:            pulumi.String("ReadWrite"),
+					StorageAccountType: pulumi.String("Standard_LRS"),
+				},
+				Tags: pulumi.StringMap{
+					"environment": pulumi.String(ctx.Stack()),
+				},
+			}, pulumi.DependsOn([]pulumi.Resource{workerNodeInterface}), pulumi.DeleteBeforeReplace(true))
+
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil
