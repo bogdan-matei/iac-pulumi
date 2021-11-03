@@ -14,10 +14,10 @@ docker_install (){
 			gnupg \
 			lsb-release;
 
-	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg;
+	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg;
 
 	echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-		$(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null;
+		$(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null;
 
 	apt-get update -y;
 
@@ -30,9 +30,12 @@ docker_install (){
 
 
 	echo "Changing cgroupdriver of docker to 'systemd' ..."
-	systemctl stop docker;
+	sed -E -i "s/(ExecStart.*)/#\1/" /lib/systemd/system/docker.service
 	mkdir -p /etc/systemd/system/docker.service.d && touch /etc/systemd/system/docker.service.d/override.conf
-	echo "ExecStart=/usr/bin/dockerd --exec-opt native.cgroupdriver=systemd" | tee /etc/systemd/system/docker.service.d/override.conf
+	echo "
+[Service]
+ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --exec-opt native.cgroupdriver=systemd
+	" | tee /etc/systemd/system/docker.service.d/override.conf
 	systemctl daemon-reload;
 	systemctl restart docker;
 
@@ -47,7 +50,7 @@ docker_install (){
 	return 0;
 }
 
-kube_components (){
+kube_install(){
 	
 	# Check https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
 	# Install kubeadm, kubelet and kubectl
@@ -55,22 +58,22 @@ kube_components (){
 	apt-get update -y;
 	apt-get install -y apt-transport-https ca-certificates curl -y;
 
-	sudo curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg;
+	curl -fsSLo /usr/share/keyrings/kubernetes-archive-keyring.gpg https://packages.cloud.google.com/apt/doc/apt-key.gpg;
 
-	echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee /etc/apt/sources.list.d/kubernetes.list
-
+	echo "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main" | tee /etc/apt/sources.list.d/kubernetes.list
+	
 	apt-get update;
 	apt-get install -y kubelet kubeadm kubectl;
 	apt-mark hold kubelet kubeadm kubectl;
 
 
 	# Install CNI plugin (Calico)
-	kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
+	# kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
-	if [ $(kubectl get pods -n kube-system | grep calico -c) -eq 0 ]; then
-		echo "Calico wasn't installed. Manually troubleshoot the issue..."
-		return 1;
-	fi
+	# if [ $(kubectl get pods -n kube-system | grep calico -c) -eq 0 ]; then
+	# 	echo "Calico wasn't installed. Manually troubleshoot the issue..."
+	# 	return 1;
+	# fi
 
 	return 0;
 }
@@ -81,7 +84,7 @@ init_node() {
 		exit -1;
 	fi
 
-	if [ $(kube_components) -ne 0 ]; then
+	if [ $(kube_install) -ne 0 ]; then
 		echo "Kubernetes components install failed";
 		exit -1;
 	fi
@@ -100,3 +103,5 @@ node_join(){
 
 	exit 0;
 }
+
+"$@"
