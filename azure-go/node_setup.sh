@@ -98,6 +98,8 @@ node_join(){
 	$1 - <token> value
 	$2 - <control-plane-host>:<control-plane-port> as a string
 	$3 - <hash> of the token
+
+	sudo kubeadm token create --print-join-command
 	'
 	kubeadm join --token $1 $2 --discovery-token-ca-cert-hash sha256:$3;
 
