@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/pulumi/pulumi-azure/sdk/v4/go/azure/compute"
 	"github.com/pulumi/pulumi-azure/sdk/v4/go/azure/network"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -38,6 +37,7 @@ type AzureVirtualMachineBlueprint struct {
 	Size pulumi.String
 
 	CustomData *pulumi.String
+	random         string
 	// 	"environment": pulumi.String(ctx.Stack())
 	Tags pulumi.StringMap
 }
@@ -50,7 +50,7 @@ func (obj *AzureVirtualMachineBlueprint) CreateLinuxVM(ctx *pulumi.Context, name
 		networkInterfacesIds = append(networkInterfacesIds, obj.NetworkInterfaces[i].ID())
 	}
 
-	_, err := compute.NewLinuxVirtualMachine(ctx, fmt.Sprintf("%s-%s", name, uuid.New()), &compute.LinuxVirtualMachineArgs{
+	_, err := compute.NewLinuxVirtualMachine(ctx, fmt.Sprintf("%s-%s", name, obj.random), &compute.LinuxVirtualMachineArgs{
 		Location:            obj.Subent.ResourceGroup.Location,
 		ResourceGroupName:   obj.Subent.ResourceGroup.Name,
 		NetworkInterfaceIds: networkInterfacesIds,

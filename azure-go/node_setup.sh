@@ -67,7 +67,7 @@ kube_install(){
 	apt-mark hold kubelet kubeadm kubectl;
 
 
-	# Install CNI plugin (Calico)
+	# Install CNI plugin (Calico) -> Only needed for Control Plane
 	# kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml
 
 	# if [ $(kubectl get pods -n kube-system | grep calico -c) -eq 0 ]; then

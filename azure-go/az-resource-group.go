@@ -3,21 +3,22 @@ package main
 import (
 	"fmt"
 
-	"github.com/google/uuid"
+	// "github.com/google/uuid"
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/resources"
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/storage"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
 )
 
-func CreateResourceGroup(ctx *pulumi.Context) (*resources.ResourceGroup, error) {
+
+func CreateResourceGroup(ctx *pulumi.Context,random string) (*resources.ResourceGroup, error) {
 	// Create an Azure Resource Group
-	resourceGroup, err := resources.NewResourceGroup(ctx, fmt.Sprintf("rg-%s", uuid.New()), nil)
+	resourceGroup, err := resources.NewResourceGroup(ctx, fmt.Sprintf("rg-%s", random), nil)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create an Azure resource (Storage Account)
-	account, err := storage.NewStorageAccount(ctx, fmt.Sprintf("sa-%s", uuid.New()), &storage.StorageAccountArgs{
+	account, err := storage.NewStorageAccount(ctx, fmt.Sprintf("sa%s", random), &storage.StorageAccountArgs{
 		ResourceGroupName: resourceGroup.Name,
 		Sku: &storage.SkuArgs{
 			Name: storage.SkuName_Standard_LRS,
