@@ -56,11 +56,12 @@ func (obj *AzureNetworkBlueprint) CreateSubnet(ctx *pulumi.Context, name string,
 	return newSubnet, err
 }
 
-func (obj *AzureNetworkBlueprint) CreatePublicIP(ctx *pulumi.Context, name string, domainName string) (network.PublicIp, error) {
+func (obj *AzureNetworkBlueprint) CreatePublicIP(ctx *pulumi.Context, name string, domainName pulumi.StringPtrInput) (network.PublicIp, error) {
 
-	publicIp, err := network.NewPublicIp(ctx, fmt.Sprintf("%s", name), &network.PublicIpArgs{
+	fmt.Println(domainName)
+	publicIp, err := network.NewPublicIp(ctx, name, &network.PublicIpArgs{
 		AllocationMethod:     pulumi.String("Static"),
-		DomainNameLabel:      pulumi.StringPtr(domainName),
+		DomainNameLabel:      domainName,
 		IdleTimeoutInMinutes: pulumi.IntPtr(5),
 		ResourceGroupName:    obj.ResourceGroup.Name,
 		Sku:                  pulumi.String("Standard"),
@@ -71,14 +72,23 @@ func (obj *AzureNetworkBlueprint) CreatePublicIP(ctx *pulumi.Context, name strin
 	return *publicIp, err
 }
 
-func (obj *AzureSubnetBlueprint) CreateNetInterface(ctx *pulumi.Context, publicIpId pulumi.String) (network.NetworkInterface, error) {
+func (obj *AzureSubnetBlueprint) CreateNetInterface(ctx *pulumi.Context, publicIp *network.PublicIp) (network.NetworkInterface, error) {
 	random := RandomString(6)
+
+	var publicIpId pulumi.StringPtrInput
+
+	if publicIp != nil {
+		publicIpId = publicIp.ID()
+	}else {
+		publicIpId = nil
+	}
 
 	nic, err := network.NewNetworkInterface(ctx, fmt.Sprintf("nic-%s", random), &network.NetworkInterfaceArgs{
 		Location:          obj.ResourceGroup.Location,
 		ResourceGroupName: obj.ResourceGroup.Name,
 		IpConfigurations: network.NetworkInterfaceIpConfigurationArray{
 			&network.NetworkInterfaceIpConfigurationArgs{
+				Name: pulumi.String(fmt.Sprintf("ipnic-%s", random)),
 				SubnetId:                   obj.Subnet.ID(),
 				PrivateIpAddressAllocation: pulumi.String("Dynamic"),
 				// omitting this will create a privat NIC

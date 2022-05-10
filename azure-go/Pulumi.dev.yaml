@@ -1,5 +1,10 @@
 config:
-  azure-go:countWorkerNodes: "2"
+  azure-go:cluster:
+    dnsName: wooferiuskubeadm
+    workerNodes: 1
+  azure-go:clusterDnsName: wooferiuskubeadm
+  azure-go:clusterWorkerNodes: 1
+  azure-go:defaultNodeSku: Standard_DS2_v2
   azure-go:public-key:
     secure: AAABAM6RDLDS75NE1UJXDVcR82rnTtKjNYXhtrglaH7cnx+jKRYdFLardZhafv5ZnLdiN8KdgoifwozrMATS7ab5rrWGE+ketsycNVsFejak68M5uGlp16LK/exhZPZ8Y9qfAStoNNddnE8fYT4jdwHaAgZcwh40a2C8A21ID2QfUSujS8bb220YjIstzXjcD2+gFu0YoVUsB6tdk1WRqkLC+vY9hOMERoRcup1f7/WyIz52H8jddq8lEjW0N6UH/BLpF0TIXfqd8Ahia/9nsRO/VqRK5o5JF8NfjD7gWxbBrEYApVL1vm1nmfS316n/Xe07S/eZmXKpCxfmY8a2y9g5mKSX+SfN0cEZoG0h+DaXCEa4W8U3p2RRSXBxMUPqgkNZd+l6Ja/xempuS8t+m79Rdh+eDb1y+LpEDg/jMSsscsg5ATF/wpHC2PXpETu2VD0vFRVPjQsJylRtwUe2Sc2dWMFg1gw/htn/UibxGgP/6Y+3Fzgafo9bbsTUxeTSIDpba7YNi5rezeIeyfaQ+4dj+Y82YUTblY1Vic8gcodKyTYi+ksUQF7ozNDvqj8xtZlQx2ywroRd22TUXCp+myVnEThRmBl4bDQ48w3c+p9MlGvlS7XSmbqhzxAdGnkDGd8exYc+DYT1E0zPFvBFyGFERrUWKE8mkqZC6/+a3D3ITSvf5iTYKlRdzFxFMeE3T68PS0c1BCtQGmuokt6Jr99fqNd0/lHpmbY/mRQp/xhHn1p1r+IVqWKSS6hyqcDOP+pegJTy/cw=
   azure-go:sourceIp:

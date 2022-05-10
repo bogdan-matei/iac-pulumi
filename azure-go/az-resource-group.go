@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 
-	// "github.com/google/uuid"
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/resources"
 	"github.com/pulumi/pulumi-azure-native/sdk/go/azure/storage"
 	"github.com/pulumi/pulumi/sdk/v3/go/pulumi"
@@ -21,9 +20,9 @@ func CreateResourceGroup(ctx *pulumi.Context,random string) (*resources.Resource
 	account, err := storage.NewStorageAccount(ctx, fmt.Sprintf("sa%s", random), &storage.StorageAccountArgs{
 		ResourceGroupName: resourceGroup.Name,
 		Sku: &storage.SkuArgs{
-			Name: storage.SkuName_Standard_LRS,
+			Name: pulumi.String("Standard_LRS"),
 		},
-		Kind: storage.KindStorageV2,
+		Kind: pulumi.String("StorageV2"),
 	})
 
 	if err != nil {
