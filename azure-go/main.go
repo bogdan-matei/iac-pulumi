@@ -18,8 +18,8 @@ var SUBNET_SIZE_LIMIT = map[string]int{
 }
 
 type ClusterConfig struct {
-	dnsName     string
-	workerNodes int
+	DnsName     string
+	WorkerNodes int
 }
 
 func createControlPlane(ctx *pulumi.Context, subnet AzureSubnetBlueprint, provider *azure.Provider, publicIp *network.PublicIp) *AzureVirtualMachineBlueprint {
@@ -61,6 +61,9 @@ func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 		config := config.New(ctx, "")
 
+    var clusterConfig ClusterConfig
+    config.RequireObject("cluster", &clusterConfig)
+
 		core_randomId := RandomString(6)
 		rg, err := CreateResourceGroup(ctx, core_randomId)
 
@@ -77,7 +80,7 @@ func main() {
 
 		privateSubnets := net.CreateSubnetCollection(ctx, SUBNET_PRIVATE_KEY_NAME, 3, "10.0.20.0/24")
 
-		controlPlanePublicIP, err := net.CreatePublicIP(ctx, "controlPlane", pulumi.String(config.Require("clusterDnsName")))
+		controlPlanePublicIP, err := net.CreatePublicIP(ctx, "controlPlane", pulumi.String(clusterConfig.DnsName))
 
 		errorHandle(err, false)
 
