@@ -22,7 +22,7 @@ type ClusterConfig struct {
 	WorkerNodes int
 }
 
-func createControlPlane(ctx *pulumi.Context, subnet AzureSubnetBlueprint, provider *azure.Provider, publicIp *network.PublicIp) *AzureVirtualMachineBlueprint {
+func createVM(ctx *pulumi.Context, name string, subnet AzureSubnetBlueprint, provider *azure.Provider, publicIp *network.PublicIp) *AzureVirtualMachineBlueprint {
 	config := config.New(ctx, "")
 
 	AdminUsername := pulumi.String("wooferius")
@@ -32,9 +32,9 @@ func createControlPlane(ctx *pulumi.Context, subnet AzureSubnetBlueprint, provid
 
 	errorHandle(err, false)
 
-	controlPlaneVM := AzureVirtualMachineBlueprint{
+	linuxVM := AzureVirtualMachineBlueprint{
 		Subnet:               subnet,
-    Provider:             provider,
+		Provider:             provider,
 		Size:                 pulumi.String(config.Require("defaultNodeSku")),
 		SourceImageReference: &defaultImageRefArgs,
 		OsDisk:               &defaultOsDiskArgs,
@@ -42,27 +42,27 @@ func createControlPlane(ctx *pulumi.Context, subnet AzureSubnetBlueprint, provid
 		NetworkInterfaces:    []*network.NetworkInterface{},
 		Tags: pulumi.StringMap{
 			"environment": pulumi.String(ctx.Stack()),
-    },
+		},
 	}
 
 	controlPlaneSshKeys := map[string]pulumi.StringInput{
 		string(AdminUsername): config.RequireSecret("public-key"),
 	}
 
-	controlPlaneVM.NetworkInterfaces = append(controlPlaneVM.NetworkInterfaces, &nic)
-	controlPlaneVM.UpdateSshKeys(ctx, controlPlaneSshKeys)
+	linuxVM.NetworkInterfaces = append(linuxVM.NetworkInterfaces, &nic)
+	linuxVM.UpdateSshKeys(ctx, controlPlaneSshKeys)
 
-	controlPlaneVM.CreateLinuxVM(ctx, "controlPlane")
+	linuxVM.CreateLinuxVM(ctx, name)
 
-	return &controlPlaneVM
+	return &linuxVM
 }
 
 func main() {
 	pulumi.Run(func(ctx *pulumi.Context) error {
 		config := config.New(ctx, "")
 
-    var clusterConfig ClusterConfig
-    config.RequireObject("cluster", &clusterConfig)
+		var clusterConfig ClusterConfig
+		config.RequireObject("cluster", &clusterConfig)
 
 		core_randomId := RandomString(6)
 		rg, err := CreateResourceGroup(ctx, core_randomId)
@@ -78,7 +78,44 @@ func main() {
 
 		publicSubnets := net.CreateSubnetCollection(ctx, SUBNET_PUBLIC_KEY_NAME, 2, "10.0.0.0/24")
 
+		publicSubnetRules := network.NetworkSecurityGroupSecurityRuleArray{
+			&network.NetworkSecurityGroupSecurityRuleArgs{
+				Name:                     pulumi.String("externalK8sApiServer"),
+				Priority:                 pulumi.Int(110),
+				Direction:                pulumi.String("Inbound"),
+				Access:                   pulumi.String("Allow"),
+				Protocol:                 pulumi.String("Tcp"),
+				SourcePortRange:          pulumi.String("*"),
+				SourceAddressPrefix:      pulumi.String("*"),
+				DestinationAddressPrefix: pulumi.String("*"),
+				DestinationPortRange:     pulumi.String("6443"),
+			},
+		}
+
+		privateSubnetRules := network.NetworkSecurityGroupSecurityRuleArray{
+			&network.NetworkSecurityGroupSecurityRuleArgs{
+				Name:                     pulumi.String("allowRemoteSSH"),
+				Priority:                 pulumi.Int(100),
+				Direction:                pulumi.String("Inbound"),
+				Access:                   pulumi.String("Allow"),
+				Protocol:                 pulumi.String("Tcp"),
+				SourcePortRange:          pulumi.String("*"),
+				// for the moment the controlPlane will be deployed in the first subnet. This needs to be changed to support multiple subents
+				SourceAddressPrefixes:    publicSubnets[0].Subnet.AddressPrefixes,
+				DestinationAddressPrefix: pulumi.String("*"),
+				DestinationPortRange:     pulumi.String("22"),
+			},
+		}
+
+		for i := 0 ; i < len(publicSubnets); i++ {
+			publicSubnets[i].CreateSecurityGroup(ctx, publicSubnetRules)
+		}
+
 		privateSubnets := net.CreateSubnetCollection(ctx, SUBNET_PRIVATE_KEY_NAME, 3, "10.0.20.0/24")
+
+		for i := 0 ; i < len(privateSubnets); i++ {
+			privateSubnets[i].CreateSecurityGroup(ctx, privateSubnetRules)
+		}
 
 		controlPlanePublicIP, err := net.CreatePublicIP(ctx, "controlPlane", pulumi.String(clusterConfig.DnsName))
 
@@ -89,19 +126,25 @@ func main() {
 				VirtualMachine: azure.ProviderFeaturesVirtualMachineArgs{
 					DeleteOsDiskOnDeletion: pulumi.Bool(true),
 				},
-        ResourceGroup: azure.ProviderFeaturesResourceGroupArgs{
-          PreventDeletionIfContainsResources: pulumi.Bool(true),
-        },
+				ResourceGroup: azure.ProviderFeaturesResourceGroupArgs{
+					PreventDeletionIfContainsResources: pulumi.Bool(true),
+				},
 			},
 		})
-  
-    errorHandle(err, true)
 
-		createControlPlane(ctx, *publicSubnets[0], computeProvider, &controlPlanePublicIP)
+		errorHandle(err, true)
+
+		// this is the ControlPlane, it has assigned a publicIp
+		createVM(ctx, "controlPlane",*publicSubnets[0], computeProvider, &controlPlanePublicIP)
 
 		if publicSubnets != nil && privateSubnets != nil {
 			fmt.Println(controlPlanePublicIP.ID())
-      fmt.Println(computeProvider.ID())
+			fmt.Println(computeProvider.ID())
+		}
+
+		// these are the VM's for the worker nodes
+		for i := 0; i < clusterConfig.WorkerNodes; i++ {
+			createVM(ctx, fmt.Sprintf("workerNode-%d", i), *privateSubnets[0], computeProvider, nil)
 		}
 
 		return nil
