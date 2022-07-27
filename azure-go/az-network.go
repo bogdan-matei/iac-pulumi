@@ -107,7 +107,7 @@ func (obj *AzureSubnetBlueprint) CreateSecurityGroup(ctx *pulumi.Context, rules 
 
 	nsg, err := network.NewNetworkSecurityGroup(ctx, fmt.Sprintf("nsg-%s", random), &network.NetworkSecurityGroupArgs{
 		Location:          obj.ResourceGroup.Location,
-		ResourceGroupName: obj.ResourceGroup.Location,
+		ResourceGroupName: obj.ResourceGroup.Name,
 		SecurityRules:     rules,
 	})
 
